@@ -1,0 +1,223 @@
+import React, { useRef, useEffect, useState } from 'react'
+import ScrollableTabView, { DefaultTabBar } from 'react-native-scrollable-tab-view'
+import { SafeAreaView, ImageBackground, ScrollView, View, FlatList, StyleSheet, Text, Dimensions, Animated } from 'react-native'
+
+const AnimatedScrollableTabView = Animated.createAnimatedComponent(ScrollableTabView)
+
+const isRangeIn = (val, [x, y]) => {
+    return (val >= x && val <= y)
+}
+
+const Item = ({ title, style = {} }) => (
+    <View
+        style={[{
+            height: 300,
+            backgroundColor: 'red',
+            margin: 20,
+        }, style]}
+    >
+        <Text>{title}</Text>
+    </View>
+)
+
+
+function debounce(f, t) {
+    let previousCall
+    let lastCallTimer = null
+    return function (...args) {
+        if (previousCall && ((Date.now() - previousCall) <= t)) {
+            clearTimeout(lastCallTimer)
+        }
+      
+        lastCallTimer = setTimeout(() => f(...args), t)
+    }
+}
+
+const App = () => {
+    const activeScrollOffsetAnimatedValueRef = useRef(new Animated.Value(0))
+    const scrollOffsetListRef = useRef([])
+    const oldScrollOffsetListRef = useRef([])
+    const scrollNodeList = useRef([])
+    const defaultIndex = 0
+    const activeIndexRef = useRef(defaultIndex)
+
+    // const defaultIndex = 0
+    // const [activeIndex, setActiveIndex] = useState(defaultIndex)
+
+    const Header = (props) => {
+        const [height, setHeight] = useState(200)
+        const translateY = activeScrollOffsetAnimatedValueRef.current.interpolate({
+            inputRange: [-999, height],
+            outputRange: [999, -height],
+            extrapolate: 'clamp',
+        });
+        useEffect(() => {
+            activeScrollOffsetAnimatedValueRef.current.addListener((val) => {
+                console.log('xxc', val)
+            })
+            setTimeout(() => {
+                setHeight(100)
+            }, 2000)
+        }, [])
+        return (
+            <Animated.View
+                style={[{
+                    position:'absolute',
+                    height: 200,
+                    left: 0,
+                    right: 0,
+                    zIndex: 1,
+                    transform: [{ translateY }]
+                }]}
+            >
+                <ImageBackground
+                    source={{ uri: 'https://picsum.photos/900' }}
+                    style={{
+                        width: '100%', height: '100%',
+                        backgroundColor: 'black'
+                    }}
+                />
+                <DefaultTabBar {...props} />
+            </Animated.View>
+        )
+    }
+
+    const handleScrollStopInternal = (index, offset) => {
+        // const scrollOffsetListCopyed = scrollOffsetList.map((item, subIndex) => (
+        //     isRangeIn(offset, [0, 200]) ? minOffset : Math.max(scrollOffsetList[subIndex], 200)
+        // ))
+
+        // scrollOffsetListCopyed[index] = offset
+
+        
+        scrollNodeList.current.forEach((_, i) => {
+            if (i === index) {
+                scrollOffsetListRef.current[index] = offset
+            } else {
+                const headerOffset = Math.min(offset, 200)
+                const oldScrollOffset = oldScrollOffsetListRef.current[i] || 0
+
+                const oldHeaderOffset = Math.min(oldScrollOffset, 200)
+                scrollOffsetListRef.current[i] = 
+                offset <= 200
+                    ? offset
+                    : Math.max(oldScrollOffset + (headerOffset - oldHeaderOffset), 0)
+            }
+        })
+
+        console.log('old', oldScrollOffsetListRef.current)
+        console.log('new', scrollOffsetListRef.current)
+        scrollNodeList.current.forEach((_, i) => {
+            if (i === index) {
+                return
+            }
+
+            if (scrollNodeList.current[i]) {
+                console.log('scroll to', i, scrollOffsetListRef.current[i])
+                // 防抖 TODO
+                scrollNodeList.current[i].scrollToOffset({
+                    animated: false,
+                    offset: scrollOffsetListRef.current[i],
+                })
+            }
+        })
+    }
+    const handleScrollStop = (index) => {
+        let timerHandler = null
+        return function (e) {
+            // 去除其他FlatList scroll影响
+            if (activeIndexRef.current !== index) {
+                return
+            }
+
+            if (timerHandler) {
+                clearTimeout(timerHandler)
+            }
+            // todo: scrollToOffset will trigger onScroll event?
+            const { nativeEvent } = e
+            const offset = nativeEvent.contentOffset.y
+
+            timerHandler = setTimeout(() => {
+                handleScrollStopInternal(index, offset)
+            }, 100)
+            
+        }
+    }
+    return (
+        <View
+            style={{
+                flex: 1,
+            }}
+        >
+            <AnimatedScrollableTabView
+                style={{
+                    backgroundColor: 'rgba(0,0,0,1)',
+                }}
+                onChangeTab={({ i }) => {
+                    const lastIndex = activeIndexRef.current
+                    activeIndexRef.current = i
+                    oldScrollOffsetListRef.current[lastIndex] = scrollOffsetListRef.current[lastIndex]
+                    // setActiveIndex(i)
+                    
+                    // activeScrollOffsetAnimatedValue.resetAnimation()
+                    // setActiveScrollOffsetAnimatedValue(new Animated.Value(scrollOffsetListRef.current[i]))
+                }}
+                renderTabBar={(props) => (<Header {...props} />)}
+            >
+                {
+                    [
+                        [{ id: 11, title: 'hello1'}, {id: 12, title: 'hello2'  }, {id: 13, title: 'hello3'  },
+                        {id: 14, title: 'hello3'  }, {id: 15, title: 'hello3'  }, {id: 16, title: 'hello3'  }],
+                        [{ id: 11, title: 'hello1'}, {id: 12, title: 'hello2'  }, {id: 13, title: 'hello3'  },
+                        {id: 14, title: 'hello3'  }, {id: 15, title: 'hello3'  }, {id: 16, title: 'hello3'  }],
+                        [{ id: 11, title: 'hello1'}, {id: 12, title: 'hello2'  }, {id: 13, title: 'hello3'  },
+                        {id: 14, title: 'hello3'  }, {id: 15, title: 'hello3'  }, {id: 16, title: 'hello3'  }],
+                    ].map((data, index) => (
+                        <Animated.FlatList
+                            key={index}
+                            ref={(node) => {
+                                scrollNodeList.current[index] = node ? node._component : null
+                            }}
+                            style={{
+                                backgroundColor: 'green',
+                                paddingTop: 230,
+                                // flexGrow: 1,
+                            }}
+                            ListHeaderComponent={<View style={{
+                                paddingTop: 230,
+                            }} />}
+                            data={data}
+                            renderItem={({ item }) => (<Item {...item} />)}
+                            keyExtractor={(item) => (item.id)}
+
+                            scrollEventThrottle={16}
+                            onScroll={
+                                Animated.event(
+                                    [{ nativeEvent: {
+                                        contentOffset: {
+                                            y: activeScrollOffsetAnimatedValueRef.current
+                                        },
+                                    } }],
+                                    {
+                                        useNativeDriver: true,
+                                        listener: handleScrollStop(index)
+                                    }
+                                )
+                            }
+                            // contentOffset={{ x: 0, y: scrollOffsetList[0] }}
+
+                            // onScrollEndDrag={
+                            //     handleScrollStop(index)
+                            // }
+                            // onMomentumScrollEnd={
+                            //     handleScrollStop(index)
+                            // }
+                        />
+                    ))
+                }
+                </AnimatedScrollableTabView>
+        </View>
+    )
+}
+
+export default App

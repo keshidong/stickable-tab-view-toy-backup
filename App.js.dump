@@ -1,0 +1,179 @@
+/**
+ * Sample React Native App
+ * https://github.com/facebook/react-native
+ *
+ */
+
+import React, { useRef } from 'react';
+import { SafeAreaView, View, FlatList, StyleSheet, Text, Dimensions, Animated } from 'react-native';
+import ScrollableTabView, { DefaultTabBar } from 'react-native-scrollable-tab-view';
+import { ScrollView } from 'react-native-gesture-handler';
+
+
+const DATA = [
+  {
+    id: 'bd7acbea-c1b1-46c2-aed5-3ad53abb28ba',
+    title: 'First Item',
+  },
+  {
+    id: '3ac68afc-c605-48d3-a4f8-fbd91aa97f63',
+    title: 'Second Item',
+  },
+  {
+    id: '58694a0f-3da1-471f-bd96-145571e29d72',
+    title: 'Third Item',
+  },
+  {
+    id: '58694a0f-3da1-471f-bd96-145571e29d73',
+    title: 'Fouth Item',
+  },
+];
+
+function Item({ title }) {
+  return (
+    <View style={styles.item}>
+      <Text style={styles.title}>{title}</Text>
+    </View>
+  );
+}
+
+const FirstRoute = () => (
+  <View style={[styles.scene, { backgroundColor: '#ff4081' }]} />
+);
+
+const SecondRoute = () => (
+  <View style={[styles.scene, { backgroundColor: '#673ab7' }]} />
+);
+
+const App = () => {
+  const scrollOffsetRef = useRef(0)
+  const wrappedScrollOffsetRef = useRef(0)
+  const handleScroll = (event) => {
+    const { nativeEvent } = event;
+    const currentScrollOffset = nativeEvent.contentOffset.y;
+    setScrollOffset(currentScrollOffset)
+    // if (currentScrollOffset < 10) {
+    //   setScrollEnabled(false)
+    // }
+
+  }
+  return (
+    <Animated.ScrollView
+      stickyHeaderIndices={[3]}
+      // style={[styles.list, { transform: [{
+      //   translateY: scrollOffsetRef.current.interpolate({
+      //     inputRange: [0, 600],
+      //     outputRange: [0, -600],
+      //     extrapolate: 'clamp',
+      //   })
+      // }] }]}
+      onScroll={({ nativeEvent }) => {
+          const { contentOffset } = nativeEvent
+          scrollOffsetRef.current = contentOffset.y
+      }}
+      onStartShouldSetResponder={() => (true)}
+      onMoveShouldSetResponder={() => {
+        console.log('xxcc')
+        return true
+      }}
+      // onResponderTerminationRequest={() => (true)}
+    >
+      <Item title='title 1' />
+      <Item title='title 2' />
+      <Item title='title 3' />
+      <ScrollableTabView
+        style={{
+          flexGrow: 1,
+          backgroundColor: 'yellow'
+        }}
+        initialPage={0}
+        renderTabBar={() => <DefaultTabBar />}
+      >
+        <Animated.FlatList
+            scrollEventThrottle={1}
+            tabLabel='Tab #1'
+            // nestedScrollEnabled={true}
+            // bounces={false}
+            // onScroll={Animated.event(
+            //   [{ nativeEvent: { contentOffset: { y: scrollOffsetRef.current } } }],
+            //   { useNativeDriver: true }
+            // )}
+            onScroll={({ nativeEvent }) => {
+              wrappedScrollOffsetRef.current = nativeEvent.contentOffset.y
+            }}
+            bounces={false}
+            onStartShouldSetResponder={() => {
+              alert(scrollOffsetRef.current)
+              if (scrollOffsetRef.current > 529) {
+                return true
+              }
+
+              return false
+            }}
+            scrollEnabled={false}
+            onMoveShouldSetResponder={(e, t) => {
+              // alert(wrappedScrollOffsetRef.current)
+              if (scrollOffsetRef.current < 529) {
+                return false
+              }
+
+              if (scrollOffsetRef.current >= 529 && wrappedScrollOffsetRef.current < 5) {
+
+                console.log(e.nativeEvent.locationY)
+                return false
+              }
+            
+              console.log('true')
+
+              return true
+            }}
+            onResponderTerminationRequest={() => {
+              alert('22')
+              if (scrollOffsetRef.current < 529) {
+                return false
+              }
+
+
+              if (scrollOffsetRef.current >= 529 && wrappedScrollOffsetRef.current < 5) {
+
+                console.log(e.nativeEvent.locationY)
+                return false
+              }
+            
+
+              return true
+            }}
+
+            style={{ height: 800, backgroundColor: 'pink' }}
+            data={[{ id: 1, title: 'hello1' }, { id: 2, title: 'hello2' }, { id: 3, title: 'hello3' }]}
+            renderItem={({ item }) => (
+              <View style={{ height: 300, backgroundColor: 'black', margin: 20 }}>
+                <Text>{item.title}</Text>
+              </View>
+            )}
+            keyExtractor={item => item.id}
+          />
+        <Text tabLabel='Tab #2'>favorite</Text>
+        <Text tabLabel='Tab #3'>project</Text>
+      </ScrollableTabView>
+    </Animated.ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  list: {
+    flex: 1,
+    backgroundColor: 'red',
+  },
+  item: {
+    backgroundColor: '#f9c2ff',
+    padding: 60,
+    marginVertical: 8,
+    marginHorizontal: 16,
+  },
+  title: {
+    fontSize: 32,
+  },
+});
+
+export default App;
